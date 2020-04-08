@@ -1,8 +1,27 @@
 library(shiny)
 library(ggplot2)
 library(sf)
+library(cowplot)
+library(dplyr)
 
 map.data <- st_read("data/COVID19LSOAShiny.shp")
+
+#Generate key
+keydata <- data.frame(IMDtert=c(1,1,1,2,2,2,3,3,3), morttert=c(1,2,3,1,2,3,1,2,3),
+                      RGB=c("#e8e8e8","#ace4e4","#5ac8c8","#dfb0d6","#a5add3",
+                            "#5698b9","#be64ac","#8c62aa","#3b4994"))
+key <- ggplot(keydata)+
+  geom_tile(aes(x=morttert, y=IMDtert, fill=RGB))+
+  scale_fill_identity()+
+  labs(x = expression("Greater age-based COVID-19 risk" %->%  ""),
+       y = expression("Greter health deprivation" %->%  "")) +
+  theme_classic() +
+  # make font small enough
+  theme(
+    axis.title = element_text(size = 8),axis.line=element_blank(), 
+    axis.ticks=element_blank(), axis.text=element_blank())+
+  # quadratic tiles
+  coord_fixed()
 
 server <- function(input, output) {
   
@@ -13,7 +32,8 @@ server <- function(input, output) {
     
     isolate({
       
-      ggplot(subset(map.data, LAname==input$userLA), aes(fill=RGB, geometry=geometry))+
+      #Draw main plot
+      plot <- ggplot(subset(map.data, LAname==input$userLA), aes(fill=RGB, geometry=geometry))+
         geom_sf(colour=ifelse(input$LSOABoundaries==FALSE ,NA, "Gray30"))+
         theme_classic()+
         scale_fill_identity()+
@@ -22,6 +42,21 @@ server <- function(input, output) {
         labs(title=paste("Mapping potential COVID-19 risk across", input$userLA),
              subtitle="LSOA-level health deprivation and potential COVID-19 mortality risk based on age-sex structure of population",
              caption="Population data from ONS, CFRs from Istituto Superiore di Sanità\nPlot by @VictimOfMaths")
+      
+      #Translate legend position selection into plot position
+      legpos <- case_when(
+        input$legendpos==1 ~ "0.03,0.6,0.3,0.3",
+        input$legendpos==2 ~ "0.68,0.6,0.3,0.3",
+        input$legendpos==3 ~ "0.03,0.03,0.3,0.3",
+        input$legendpos==4 ~ "0.68,0.05,0.3,0.3",
+        input$legendpos==5 ~ "0,0,0,0"
+      )
+      
+      #Stick plot and legend together
+      ggdraw()+
+        draw_plot(plot, 0,0,1,1)+
+        eval(parse(text=ifelse(input$legendpos==5, "NULL", paste0("draw_plot(key,", legpos, ")"))))
+      
     })
   })
 }
