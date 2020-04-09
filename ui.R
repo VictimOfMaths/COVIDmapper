@@ -21,10 +21,14 @@ ui <- fluidPage(
                                                                                   "No legend"=5),
                               selected=3),
                  actionButton("run", "Generate plot"),
+                 #downloadButton('downloadPlot', 'Download map'),
                  width=2),
     
     #Set up main panel for the plot
     mainPanel(
-      plotOutput("plot"))
+      fluidRow(plotOutput("plot")),
+      br(),
+      fluidRow(downloadButton('covid_download'))
+    ) # end mainpanel
   )
 )
